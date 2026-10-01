@@ -3700,7 +3700,7 @@
 				DEVELOPMENT_TEAM = 9247PC9936;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Share to Minis";
+				INFOPLIST_KEY_CFBundleDisplayName = "Share to localClaw";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3727,7 +3727,7 @@
 				DEVELOPMENT_TEAM = 9247PC9936;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Share to Minis";
+				INFOPLIST_KEY_CFBundleDisplayName = "Share to localClaw";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3754,7 +3754,7 @@
 				DEVELOPMENT_TEAM = 9247PC9936;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FileProvider/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Minis Files";
+				INFOPLIST_KEY_CFBundleDisplayName = "localClaw Files";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3781,7 +3781,7 @@
 				DEVELOPMENT_TEAM = 9247PC9936;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FileProvider/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Minis Files";
+				INFOPLIST_KEY_CFBundleDisplayName = "localClaw Files";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
