@@ -269,6 +269,7 @@ final class ProviderConfigStore: ObservableObject {
     /// verbatim from init's completion closure so degraded-load recovery can
     /// re-run the same adoption after protected data becomes available.
     private func adoptDB(_ db: ProviderConfigDB?) async {
+                defer { installBundledDefaultProviderIfNeeded() }
                 self.db = db
                 guard let db else { return }
                 // [T-thinking-rules-phase2] Prime the synchronous thinking-rule cache the
@@ -2824,6 +2825,62 @@ final class ProviderConfigStore: ObservableObject {
             Task {
                 await autoRefreshModels(for: instance)
             }
+        }
+    }
+
+    /// Personal TestFlight bootstrap. The bundled encryption key only obscures
+    /// the credential; anyone with the IPA can recover it. Do not use for public distribution.
+    private func installBundledDefaultProviderIfNeeded() {
+        let marker = "localClaw.defaultProviderInstalled.v1"
+        guard loadDegradation == .none,
+              !UserDefaults.standard.bool(forKey: marker),
+              config.instances.isEmpty, config.modelEntries.isEmpty,
+              config.modelGroups.isEmpty,
+              config.deletedInstances.isEmpty,
+              let url = Bundle.main.url(forResource: "localclaw-bootstrap", withExtension: "json",
+                                        subdirectory: "default_mount") else { return }
+        struct Envelope: Decodable {
+            let wrappingKey: String
+            let sealed: String
+        }
+        struct Credential: Decodable { let apiKey: String }
+        do {
+            let envelope = try JSONDecoder().decode(Envelope.self, from: Data(contentsOf: url))
+            guard let wrappingKey = Data(base64Encoded: envelope.wrappingKey), wrappingKey.count == 32,
+                  let sealed = Data(base64Encoded: envelope.sealed) else { return }
+            let plaintext = try AES.GCM.open(
+                AES.GCM.SealedBox(combined: sealed),
+                using: SymmetricKey(data: wrappingKey),
+                authenticating: Data("localClaw.default-provider.v1".utf8)
+            )
+            let credential = try JSONDecoder().decode(Credential.self, from: plaintext)
+            guard !credential.apiKey.isEmpty else { return }
+            let instance = ProviderInstance(
+                id: "localclaw-deepseek-default-v1", label: "DeepSeek",
+                providerType: .openAI, credentialType: .apiKey,
+                customBaseURL: "https://api.deepseek.com", appendV1Suffix: true
+            )
+            ProviderKeychainHelper.saveAPIKey(credential.apiKey, instanceId: instance.id)
+            guard ProviderKeychainHelper.loadAPIKey(instanceId: instance.id) == credential.apiKey else {
+                logger.error("localClaw default provider: Keychain unavailable; bootstrap postponed")
+                return
+            }
+            let entry = ModelEntry(providerInstanceId: instance.id, model: LLMModel(
+                id: "deepseek-chat", displayName: "DeepSeek Chat", provider: "DeepSeek",
+                modalityOverride: .textOnly
+            ), isCustom: true)
+            let group = ModelGroup(name: "Default Models", memberEntryIds: [entry.id], strategy: .fallback)
+            config.instances.append(instance)
+            config.modelEntries.append(entry)
+            config.modelGroups.append(group)
+            config.defaultPrimaryGroupId = group.id
+            save()
+            UserDefaults.standard.set(true, forKey: marker)
+            objectWillChange.send()
+            logger.info("localClaw default DeepSeek provider installed")
+        } catch {
+            // Never log decrypted content or decoder errors containing it.
+            logger.error("localClaw default-provider payload could not be opened")
         }
     }
 

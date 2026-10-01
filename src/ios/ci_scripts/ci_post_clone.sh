@@ -16,7 +16,8 @@ export PKG_CONFIG_PATH="$BREW_PREFIX/opt/libarchive/lib/pkgconfig${PKG_CONFIG_PA
 
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install meson==1.12.1
+python -m pip install meson==1.12.1 cryptography==50.0.0
+python scripts/generate_localclaw_bootstrap.py
 go version
 
 git submodule update --init --recursive
