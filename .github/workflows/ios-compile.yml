@@ -1,7 +1,7 @@
 name: iOS compile check
 
 # Compile-only verification of the OpenMinis iOS app on a GitHub-hosted
-# macOS runner (Xcode 26.2). This does NOT sign or archive: it exists so the
+# macOS runner (Xcode 27.2). This does NOT sign or archive: it exists so the
 # build chain (LAME -> FFmpeg -> iSH -> rootfs -> rclone -> Swift) can be
 # verified and its logs read straight from GitHub.
 #
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   compile:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 240
     steps:
       - name: Checkout
@@ -28,10 +28,10 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Select Xcode 26.2
+      - name: Select Xcode 27.2 (same as Xcode Cloud)
         run: |
           set -euo pipefail
-          sudo xcode-select -s /Applications/Xcode_26.2.app
+          sudo xcode-select -s /Applications/Xcode_27.2.app
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
