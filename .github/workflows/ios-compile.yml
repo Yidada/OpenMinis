@@ -1,0 +1,85 @@
+name: iOS compile check
+
+# Compile-only verification of the OpenMinis iOS app on a GitHub-hosted
+# macOS runner (Xcode 26.2). This does NOT sign or archive: it exists so the
+# build chain (LAME -> FFmpeg -> iSH -> rootfs -> rclone -> Swift) can be
+# verified and its logs read straight from GitHub.
+#
+# Xcode Cloud remains the path that produces TestFlight builds.
+
+on:
+  push:
+    branches:
+      - ci/compile-check
+  workflow_dispatch:
+
+concurrency:
+  group: ios-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: macos-26
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Select Xcode 26.2
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Homebrew dependencies
+        run: |
+          set -euo pipefail
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          export HOMEBREW_NO_INSTALL_CLEANUP=1
+          brew install ninja llvm lld libarchive pkg-config go python
+
+      - name: Python build tooling
+        run: |
+          set -euo pipefail
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install meson
+
+      - name: Submodules
+        run: |
+          set -euo pipefail
+          git submodule update --init --recursive
+          git submodule status
+
+      - name: Build native dependencies
+        run: |
+          set -euo pipefail
+          . .venv/bin/activate
+          BREW_PREFIX="$(brew --prefix)"
+          export PATH="$BREW_PREFIX/bin:$BREW_PREFIX/opt/lld/bin:$PATH"
+          export PKG_CONFIG_PATH="$BREW_PREFIX/opt/libarchive/lib/pkgconfig"
+          ./deps/build_lame.sh
+          ./deps/build_ffmpeg.sh
+          ./deps/build_ish.sh
+          ./deps/prepare_alpine_rootfs.sh
+          ./deps/build_rclone_ios.sh
+          ls -la deps/libs deps/frameworks deps/resources
+
+      - name: Compile app (no signing)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project src/ios/Minis.xcodeproj \
+            -scheme Minis \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee xcodebuild.log | tail -200
