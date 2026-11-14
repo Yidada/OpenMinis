@@ -21,7 +21,9 @@ set -euo pipefail
 # Remove this block once the cloud build is green.
 TRACE_TOPIC="${CI_TRACE_TOPIC:-minis-ci-yidada-7f3c2a}"
 trace() { curl -fsS --max-time 5 -d "$1" "https://ntfy.sh/$TRACE_TOPIC" >/dev/null 2>&1 || true; }
-trap 'rc=$?; trace "FAIL rc=$rc line=$LINENO cmd=$BASH_COMMAND"; exit $rc' ERR
+LOG=/tmp/ci_post_clone.log
+exec > >(tee -a "$LOG") 2>&1
+trap 'rc=$?; trace "FAIL rc=$rc line=$LINENO cmd=$BASH_COMMAND"; tail -c 1200 "$LOG" | while IFS= read -r l; do trace "LOG $l"; done; exit $rc' ERR
 
 step() { echo ""; echo "▸ $*"; trace "STEP $*"; }
 
@@ -69,6 +71,28 @@ if [ -n "$missing" ]; then
     echo "error: required build tools are missing:$missing" >&2
     exit 1
 fi
+
+step "go toolchain (1.25, not the image default)"
+GO_DIR=/tmp/go1.25
+if [ ! -x "$GO_DIR/bin/go" ]; then
+    GO_FILE=$(curl -fsSL "https://go.dev/dl/?mode=json&include=all" | python3 -c '
+import json, sys
+for release in json.load(sys.stdin):
+    if not release["version"].startswith("go1.25."):
+        continue
+    for f in release["files"]:
+        if f["os"] == "darwin" and f["arch"] == "arm64" and f["kind"] == "archive":
+            print(f["filename"]); sys.exit(0)
+sys.exit(1)
+')
+    echo "  downloading $GO_FILE"
+    curl -fsSL "https://go.dev/dl/$GO_FILE" -o /tmp/go.tar.gz
+    mkdir -p "$GO_DIR"
+    tar -xzf /tmp/go.tar.gz -C "$GO_DIR" --strip-components=1
+fi
+export GOROOT="$GO_DIR"
+export PATH="$GO_DIR/bin:$PATH"
+go version
 
 step "python build tooling"
 python3 -m venv .venv
