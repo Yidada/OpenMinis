@@ -84,8 +84,9 @@ jobs:
           ls -la deps/libs deps/frameworks deps/resources
 
       - name: Compile app (no signing)
+        id: build
         run: |
-          set -euo pipefail
+          set +e
           xcodebuild \
             -project src/ios/Minis.xcodeproj \
             -scheme Minis \
@@ -95,4 +96,21 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build 2>&1 | tee xcodebuild.log | tail -200
+            build > xcodebuild.log 2>&1
+          rc=$?
+          echo "xcodebuild exit=$rc; log lines=$(wc -l < xcodebuild.log)"
+          if [ $rc -ne 0 ]; then
+            echo "===== errors ====="
+            grep -E "error:" xcodebuild.log | sort -u | head -60
+            echo "===== tail ====="
+            tail -40 xcodebuild.log
+          fi
+          exit $rc
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
+          if-no-files-found: warn
