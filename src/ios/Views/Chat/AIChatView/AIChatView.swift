@@ -752,7 +752,11 @@ struct AIChatView: View {
             // Full-screen kernel boot overlay
             kernelBootOverlay
         })
-        .background(ChatColors.background)
+        // Tech wallpaper instead of the flat fill; it paints
+        // `ChatColors.background` first, so Reduce Transparency (or a missing
+        // asset) still lands on the previous look. See
+        // AIChatView+Wallpaper.swift.
+        .background(ChatWallpaperBackground())
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
             handleDropProviders(providers)
             return true
