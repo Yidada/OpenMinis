@@ -14,7 +14,16 @@
 
 set -euo pipefail
 
-step() { echo ""; echo "▸ $*"; }
+# Temporary diagnostics: Xcode Cloud only reports "ci_post_clone.sh exited with
+# code 1" in the GitHub check, and the full log lives behind an App Store
+# Connect login. Each phase marker and the failing command are mirrored to a
+# throwaway ntfy topic so the build can be debugged without that login.
+# Remove this block once the cloud build is green.
+TRACE_TOPIC="${CI_TRACE_TOPIC:-minis-ci-yidada-7f3c2a}"
+trace() { curl -fsS --max-time 5 -d "$1" "https://ntfy.sh/$TRACE_TOPIC" >/dev/null 2>&1 || true; }
+trap 'rc=$?; trace "FAIL rc=$rc line=$LINENO cmd=$BASH_COMMAND"; exit $rc' ERR
+
+step() { echo ""; echo "▸ $*"; trace "STEP $*"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="${CI_PRIMARY_REPOSITORY_PATH:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
@@ -23,6 +32,8 @@ cd "$REPOSITORY_ROOT"
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 export HOMEBREW_NO_ENV_HINTS=1
+
+trace "BUILD START $(date -u +%H:%M:%S) sha=$(git rev-parse --short HEAD 2>/dev/null || echo none) pwd=$(pwd)"
 
 step "environment"
 sw_vers
