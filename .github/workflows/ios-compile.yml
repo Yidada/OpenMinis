@@ -62,6 +62,13 @@ jobs:
           git submodule update --init --recursive
           git submodule status
 
+      - name: Build-time configuration
+        run: |
+          set -euo pipefail
+          cp src/ios/Configs/ProviderCustomization.xcconfig.example \
+             src/ios/Configs/ProviderCustomization.xcconfig
+          cat src/ios/Configs/ProviderCustomization.xcconfig
+
       - name: Build native dependencies
         run: |
           set -euo pipefail
