@@ -702,7 +702,11 @@ private let logger = AppLogger(category: "SessionsOffload")
     /// Move one session into a group, creating the group when no exact-name
     /// match exists. An empty/blank name ungroups the session.
     /// Returns {id, group, changed, created} or {error, message}.
-    @objc public static func updateSessionGroup(sessionId: String, groupName: String) -> NSDictionary {
+    // Explicit selector: Swift would otherwise generate
+    // `updateSessionGroupWithSessionId:groupName:` and the ObjC caller in
+    // SessionsOffload.m would not find it.
+    @objc(updateSessionGroup:groupName:)
+    public static func updateSessionGroup(sessionId: String, groupName: String) -> NSDictionary {
         let sem = DispatchSemaphore(value: 0)
         var out: NSDictionary = [:]
 
