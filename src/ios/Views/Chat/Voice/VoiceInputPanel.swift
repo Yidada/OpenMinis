@@ -455,6 +455,60 @@ final class VoiceInputViewModel: ObservableObject {
         VoiceModePreference.shared.isCapturing = false
     }
 
+    // MARK: - Hold to talk [P0]
+    //
+    // The mic supports two gestures over one capture session:
+    //   • tap  → the existing toggle (start / pause), behaviour unchanged
+    //   • hold → capture only while the finger is down, then finish
+    //
+    // Release-to-finish reuses `pauseCapture()`: it calls `vad.flush()` before
+    // stopping, so the words being spoken at the moment of release still reach
+    // ASR. A plain `stopListening()` would drop them.
+    //
+    // Slide-up-to-cancel takes the opposite path — stop WITHOUT flushing,
+    // cancel anything already in flight, and restore the transcript to the
+    // snapshot taken when the press began. Without that restore, a segment
+    // already sent to ASR would land after the cancel and leave half a
+    // sentence in the composer.
+
+    /// True from the moment the long-press threshold is crossed until release.
+    @Published private(set) var isHoldingToTalk = false
+    /// Transcript at press time; cancel restores it.
+    private var holdTranscriptSnapshot = ""
+
+    func beginHoldToTalk() {
+        guard !permissionDenied, !isHoldingToTalk else { return }
+        isHoldingToTalk = true
+        holdTranscriptSnapshot = transcript
+        VoiceLog.log("[VoiceInputDebug] hold-to-talk begin (capturing=\(vad.isCapturing), state=\(state))")
+        // First press starts capture (and may raise the permission prompt);
+        // a press while already dictating just anchors the release.
+        if !vad.isCapturing {
+            handleMainButtonTap()
+        }
+    }
+
+    func endHoldToTalk(cancelled: Bool) {
+        guard isHoldingToTalk else { return }
+        isHoldingToTalk = false
+        if cancelled {
+            vad.stop()
+            cancelTranscription()
+            transcript = holdTranscriptSnapshot
+            state = .waiting
+            listeningLabelToken &+= 1
+            cancelTipCycle()
+            recordingTipIndex = 0
+            cancelIdleTimer()
+            cancelTotalRecordingTimer()
+            VoiceModePreference.shared.isCapturing = false
+            VoiceLog.log("[VoiceInputDebug] hold-to-talk cancelled — transcript restored (\(transcript.count) chars)")
+        } else if vad.isCapturing {
+            pauseCapture()
+            VoiceLog.log("[VoiceInputDebug] hold-to-talk release → pauseCapture")
+        }
+    }
+
     /// Mic button: start listening on the first tap (requesting permission if
     /// needed), then toggle pause/resume. The VAD is otherwise always on
     /// (continuous dictation) — segments transcribe as silence is detected while
