@@ -326,8 +326,15 @@ extension AIChatView {
     var weChatComposerRow: AnyView {
         let hasText = !vm.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let row = HStack(alignment: .center, spacing: 8) {
-            WeChatVoiceKeyButton(isVoiceMode: voiceInputActive) {
-                toggleWeChatVoiceMode()
+            // Editing a past message: WeChat has no such mode, and the old
+            // button row (which owned the exit capsule) is gone, so the exit
+            // takes the voice key's slot while editing.
+            if vm.editingMessageIndex != nil {
+                editExitButton
+            } else {
+                WeChatVoiceKeyButton(isVoiceMode: voiceInputActive) {
+                    toggleWeChatVoiceMode()
+                }
             }
 
             if voiceInputActive {

@@ -180,7 +180,11 @@ extension AIChatView {
             // sampler never sees it) that clips itself to the same shape, so
             // it cannot spill past the outline (see ComposerContextGlow).
             .overlay {
-                ComposerContextGlow(tier: vm.contextUsage?.tier ?? .normal)
+                // [wechat-composer] The glow is clipped to the old rounded
+                // card; on the flat WeChat bar it would draw a floating ring.
+                if !WeChatComposerStyle.enabled {
+                    ComposerContextGlow(tier: vm.contextUsage?.tier ?? .normal)
+                }
             }
             .frame(maxWidth: maxContentWidth)
             .padding(.horizontal, WeChatComposerStyle.enabled ? 0 : 12)
