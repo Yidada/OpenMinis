@@ -491,6 +491,13 @@ struct InlineVoiceInputView: View {
             }
             // Don't auto-start: show "Tap to speak" and let the user tap the mic.
             viewModel.prepare()
+            // [T-composer-hold-to-talk] …unless the user is already holding the
+            // composer's mic: that press switched us into voice mode and is
+            // still down. Start capture now, under the same finger.
+            if viewModel.consumeComposerHold() {
+                VoiceLog.log("[hold-to-talk] composer hold → capture starts in onAppear")
+                viewModel.beginHoldToTalk()
+            }
         }
         // [voice-correction] No auto-correction .onChange here by design — correction is
         // manual, driven solely by the top-right AI-correction button (runManualCorrection).

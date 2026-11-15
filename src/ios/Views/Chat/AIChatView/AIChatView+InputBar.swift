@@ -115,6 +115,10 @@ extension AIChatView {
                     .padding(.top, 8)
                 }
 
+                if WeChatComposerStyle.enabled {
+                    // [wechat-composer] One row: voice key / field / + or 发送.
+                    weChatComposerRow
+                } else {
                 inputFieldOrWaveform
 
                 inputBottomRow
@@ -135,6 +139,7 @@ extension AIChatView {
                     // constant subtracted back out of it.
                     .padding(.horizontal, 12)
                     .padding(.bottom, 10)
+                }
             })
             .contentShape(RoundedRectangle(cornerRadius: 20))
             .onTapGesture { inputFocused = true }
@@ -169,17 +174,21 @@ extension AIChatView {
                     .padding(.trailing, 10)
                 }
             }
-            .modifier(ComposerSurface())
+            .modifier(ComposerChrome())
             // [T-ios-context-usage-hint] Inner glow along the glass wall.
             // An overlay ABOVE the material (so the Liquid Glass backdrop
             // sampler never sees it) that clips itself to the same shape, so
             // it cannot spill past the outline (see ComposerContextGlow).
             .overlay {
-                ComposerContextGlow(tier: vm.contextUsage?.tier ?? .normal)
+                // [wechat-composer] The glow is clipped to the old rounded
+                // card; on the flat WeChat bar it would draw a floating ring.
+                if !WeChatComposerStyle.enabled {
+                    ComposerContextGlow(tier: vm.contextUsage?.tier ?? .normal)
+                }
             }
             .frame(maxWidth: maxContentWidth)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, WeChatComposerStyle.enabled ? 0 : 12)
+            .padding(.vertical, WeChatComposerStyle.enabled ? 0 : 8)
             // [T-ios-geometry-observer-crash] onGeometryChange replaces the
             // GeometryReader scaffold (async-renderer SIGTRAP — see the
             // floating-bar site). Fires with the initial value too, so the

@@ -282,7 +282,18 @@ extension AIChatView {
                 VoiceModePreference.shared.enteredFromText = true
                 withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = true }
             }
-        }, isVoiceActive: voiceInputActive)
+        }, isVoiceActive: voiceInputActive,
+           onHoldBegan: {
+            // [T-composer-hold-to-talk] Held past the threshold in text mode:
+            // switch into voice mode and start recording in the same motion.
+            vm.voiceUsedInComposition = true
+            VoiceModePreference.shared.enteredFromText = true
+            voiceVM.armComposerHold()
+            inputFocused = false
+            withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = true }
+        }, onHoldEnded: { cancelled in
+            voiceVM.endHoldToTalk(cancelled: cancelled)
+        })
     }
 
     /// Send / Enqueue / Stop circular button.
@@ -303,6 +314,124 @@ extension AIChatView {
                        isWaitingToSendVoice: isWaitingToSendVoice,
                        onSend: { performSend() },
                        onEnqueue: { performEnqueue() })
+    }
+
+    // MARK: - WeChat composer row [wechat-composer]
+
+    /// Single-row composer, laid out like WeChat's:
+    /// `[voice key] [field / 按住 说话] [+ or 发送]`.
+    ///
+    /// Everything is gated on `WeChatComposerStyle.enabled`; with it off the
+    /// caller keeps using `inputFieldOrWaveform` + `inputBottomRow` untouched.
+    var weChatComposerRow: AnyView {
+        let hasText = !vm.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let row = HStack(alignment: .center, spacing: 8) {
+            // Editing a past message: WeChat has no such mode, and the old
+            // button row (which owned the exit capsule) is gone, so the exit
+            // takes the voice key's slot while editing.
+            if vm.editingMessageIndex != nil {
+                editExitButton
+            } else {
+                WeChatVoiceKeyButton(isVoiceMode: voiceInputActive) {
+                    toggleWeChatVoiceMode()
+                }
+            }
+
+            if voiceInputActive {
+                WeChatHoldToTalkBar(hold: weChatHold,
+                                    onBegan: { beginWeChatHold() },
+                                    onEnded: { endWeChatHold(cancelled: $0) })
+            } else {
+                weChatFieldCapsule
+            }
+
+            // WeChat swaps the "+" for a green 发送 once there is text. Minis
+            // still needs the stop / queue / transcribing states, so a running
+            // turn keeps the existing button instead of the capsule.
+            if vm.isProcessing || isWaitingToSendVoice {
+                sendButton
+            } else if hasText {
+                WeChatSendCapsule(enabled: canSend) { performSend() }
+            } else {
+                weChatPlusButton
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        // Live transcript: while the finger is down (and until ASR settles)
+        // the recognised text is the composer's text, exactly as WeChat writes
+        // the conversion back into the input box.
+        .onReceive(voiceVM.$transcript) { text in
+            guard weChatHold.isHolding || voiceVM.isTranscribing else { return }
+            vm.inputText = weChatHoldBaseText + text
+        }
+        return AnyView(row)
+    }
+
+    /// The text field, wrapped to WeChat's 36 pt white capsule.
+    private var weChatFieldCapsule: some View {
+        inputFieldOrWaveform
+            .frame(minHeight: WeChatComposerStyle.fieldHeight)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: WeChatComposerStyle.fieldCorner)
+                    .fill(WeChatComposerStyle.fieldBackgroundDynamic)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: WeChatComposerStyle.fieldCorner))
+            .onTapGesture { inputFocused = true }
+    }
+
+    /// "+" — the attachment menu, drawn as WeChat's line-art circle.
+    private var weChatPlusButton: some View {
+        Menu {
+            Button { showCamera = true } label: { Label("Take Photo", systemImage: "camera") }
+            Button { showPhotoPicker = true } label: { Label("Choose Photos & Videos", systemImage: "photo.on.rectangle") }
+            Button { showDocumentPicker = true } label: { Label("Add File", systemImage: "doc") }
+        } label: {
+            Image(systemName: "plus.circle")
+                .font(.system(size: 24, weight: .regular))
+                .foregroundStyle(ChatColors.secondaryText)
+                .frame(width: 30, height: WeChatComposerStyle.fieldHeight)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
+    }
+
+    private func toggleWeChatVoiceMode() {
+        if voiceInputActive {
+            // Keep the dictated text: it already lives in the composer.
+            voiceVM.reset(clearTranscript: false)
+            withAnimation(.easeInOut(duration: 0.15)) { voiceInputActive = false }
+        } else {
+            vm.voiceUsedInComposition = true
+            inputFocused = false
+            withAnimation(.easeInOut(duration: 0.15)) { voiceInputActive = true }
+        }
+    }
+
+    /// Press crossed the threshold: snapshot the draft and start capture.
+    private func beginWeChatHold() {
+        vm.voiceUsedInComposition = true
+        inputFocused = false
+        weChatHoldBaseText = vm.inputText
+        voiceVM.reset(clearTranscript: true)
+        voiceVM.beginHoldToTalk()
+    }
+
+    /// Finger lifted. Cancel restores the draft; otherwise the transcript stays
+    /// in the composer and the composer returns to text mode so it can be
+    /// edited and sent, which is WeChat's "转文字" outcome.
+    private func endWeChatHold(cancelled: Bool) {
+        voiceVM.endHoldToTalk(cancelled: cancelled)
+        if cancelled {
+            vm.inputText = weChatHoldBaseText
+            VoiceLog.log("[WeChatComposer] hold cancelled — draft restored")
+        } else {
+            vm.inputText = weChatHoldBaseText + voiceVM.transcript
+            withAnimation(.easeInOut(duration: 0.15)) { voiceInputActive = false }
+            inputFocused = true
+            VoiceLog.log("[WeChatComposer] hold released — \(voiceVM.transcript.count) chars kept")
+        }
     }
 
     /// Either the multi-line text field or the audio waveform, depending on
@@ -470,11 +599,14 @@ extension AIChatView {
                 field.fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, topPadding)
-        .padding(.bottom, 10)
+        // [wechat-composer] The WeChat row owns all of the spacing: the field
+        // sits inside a 36 pt capsule with an 8 pt inset, so the old composer
+        // paddings would double up.
+        .padding(.horizontal, WeChatComposerStyle.enabled ? 0 : 16)
+        .padding(.top, WeChatComposerStyle.enabled ? 0 : topPadding)
+        .padding(.bottom, WeChatComposerStyle.enabled ? 0 : 10)
         .overlay(alignment: .top) {
-            if composerResizeEnabled { composerResizeHandle }
+            if composerResizeEnabled && !WeChatComposerStyle.enabled { composerResizeHandle }
         }
     }
 
