@@ -85,6 +85,15 @@ enum VoiceProviderFactory {
 
         // OpenAI-compatible families ---------------------------------------
         case .openAI, .openAIResponses:
+            // DeepSeek: ASR lives at /v1/tools/asr with a single `file` part —
+            // see VoiceProvider+DeepSeek.swift. Matched before the generic
+            // OpenAI branch so the instance never falls back to
+            // /v1/audio/transcriptions (404 on this host).
+            if normalizedBase.contains("api.deepseek.com") {
+                return DeepSeekVoiceProvider(providerId: instance.id,
+                                             baseURL: custom ?? "https://api.deepseek.com",
+                                             apiKey: apiKey)
+            }
             if normalizedBase.contains("groq.com") {
                 return GroqVoiceProvider(providerId: instance.id,
                                          baseURL: custom ?? "https://api.groq.com/openai",
