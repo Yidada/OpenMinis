@@ -22,7 +22,8 @@ private let logger = AppLogger(category: "SessionsOffload")
         keywords: [String]?,
         startDate: Date?,
         endDate: Date?,
-        limit: Int
+        limit: Int,
+        groupFilter: String?
     ) -> NSDictionary {
         // ChatStore is an actor — bridge into async via semaphore + Task.detached.
         // Called from the iSH guest thread (never main), so blocking is safe.
@@ -33,6 +34,7 @@ private let logger = AppLogger(category: "SessionsOffload")
             let metas = await ChatStore.shared.querySessionsMeta(
                 sessionIds: sessionIds,
                 keywords: keywords,
+                groupFilter: groupFilter,
                 limit: limit,
                 startDate: startDate,
                 endDate: endDate
@@ -51,6 +53,9 @@ private let logger = AppLogger(category: "SessionsOffload")
                 if let t = m.title { dict["title"] = t }
                 if let p = m.preview { dict["preview"] = p }
                 if let s = m.source { dict["source"] = s }
+                // [T-cli-groups] Always present, like the spec: "" when ungrouped.
+                dict["group"] = m.group ?? ""
+                dict["icon"] = m.icon ?? ""
                 return dict
             }
             sem.signal()
@@ -647,6 +652,11 @@ private let logger = AppLogger(category: "SessionsOffload")
             // The last tool's result, summarised - what to read when the run
             // ended without a final message.
             if !lastToolResult.isEmpty { data["last_tool_result"] = lastToolResult }
+            // [T-cli-groups] Group name + icon key alongside the title.
+            let folderName = await ChatStore.shared.listFolders()
+                .first(where: { $0.id == session.folderId })?.name ?? ""
+            data["group"] = folderName
+            data["icon"] = session.category ?? ""
             if let parent = session.parentSessionId { data["parent_session_id"] = parent }
             if let termination {
                 data.merge(termination.payload()) { _, new in new }
@@ -660,5 +670,100 @@ private let logger = AppLogger(category: "SessionsOffload")
         }
         sem.wait()
         return output as NSDictionary
+    }
+
+    // MARK: - [T-cli-groups] Groups (folders)
+
+    /// Every group (folder) in the app's display order, with its member count.
+    @objc public static func listGroups() -> NSDictionary {
+        let sem = DispatchSemaphore(value: 0)
+        var rows: [[String: Any]] = []
+
+        Task.detached {
+            let store = ChatStore.shared
+            let folders = await store.listFolders()
+            for f in folders {
+                let ids = await store.sessionIdsInFolder(f.id)
+                rows.append([
+                    "id": f.id,
+                    "name": f.name,
+                    "session_count": ids.count,
+                    "pinned": f.isPinned,
+                    "desc": f.desc ?? "",
+                ])
+            }
+            sem.signal()
+        }
+        sem.wait()
+
+        return ["count": rows.count, "groups": rows] as NSDictionary
+    }
+
+    /// Move one session into a group, creating the group when no exact-name
+    /// match exists. An empty/blank name ungroups the session.
+    /// Returns {id, group, changed, created} or {error, message}.
+    @objc public static func updateSessionGroup(sessionId: String, groupName: String) -> NSDictionary {
+        let sem = DispatchSemaphore(value: 0)
+        var out: NSDictionary = [:]
+
+        Task.detached {
+            let store = ChatStore.shared
+            let metas = await store.querySessionsMeta(sessionIds: [sessionId], limit: 1)
+            guard let meta = metas.first else {
+                out = ["error": "session_not_found",
+                       "message": "No session with id \(sessionId). Use 'list' to find one."]
+                sem.signal()
+                return
+            }
+            let before = meta.group ?? ""
+            let trimmed = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if trimmed.isEmpty {
+                if before.isEmpty {
+                    out = ["id": sessionId, "group": "", "changed": [], "created": false]
+                } else {
+                    await store.setFolder(nil, forSessions: [sessionId])
+                    out = ["id": sessionId, "group": "", "changed": ["group"], "created": false]
+                }
+                sem.signal()
+                return
+            }
+
+            var created = false
+            let folders = await store.listFolders()
+            let matches = folders.filter { $0.name == trimmed }
+            var target: ChatFolder?
+
+            if matches.isEmpty {
+                target = await store.createFolder(name: trimmed, origin: "cli", desc: nil)
+                created = target != nil
+            } else if matches.count == 1 {
+                target = matches[0]
+            } else {
+                // Duplicate names are allowed by design. Same tie-break as the
+                // app's findFolderByName, minus its case folding: a group with
+                // members wins (most recently active member first); otherwise
+                // the oldest group.
+                let activity = await store.folderLastActivity()
+                let withMembers = matches.filter { activity[$0.id] != nil }
+                target = withMembers.max { (activity[$0.id] ?? .distantPast) < (activity[$1.id] ?? .distantPast) }
+                    ?? matches.min { $0.createdAt < $1.createdAt }
+            }
+
+            guard let chosen = target else {
+                out = ["error": "internal_error", "message": "Could not create group '\(trimmed)'."]
+                sem.signal()
+                return
+            }
+
+            await store.setFolder(chosen.id, forSessions: [sessionId])
+            // Moving between two groups with the same name is not a change.
+            let changed = before == chosen.name ? [] : ["group"]
+            out = ["id": sessionId, "group": chosen.name,
+                   "group_id": chosen.id, "changed": changed, "created": created]
+            sem.signal()
+        }
+        sem.wait()
+        return out
     }
 }

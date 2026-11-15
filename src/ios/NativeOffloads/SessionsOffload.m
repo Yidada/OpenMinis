@@ -23,7 +23,11 @@
                                               keywords:(NSArray<NSString *> * _Nullable)keywords
                                              startDate:(NSDate * _Nullable)startDate
                                                endDate:(NSDate * _Nullable)endDate
-                                                 limit:(NSInteger)limit;
+                                                 limit:(NSInteger)limit
+                                           groupFilter:(NSString * _Nullable)groupFilter;
++ (NSDictionary * _Nonnull)listGroups;
++ (NSDictionary * _Nonnull)updateSessionGroup:(NSString * _Nonnull)sessionId
+                                    groupName:(NSString * _Nonnull)groupName;
 + (NSDictionary * _Nonnull)searchMessagesWithSessionIds:(NSArray<NSString *> * _Nullable)sessionIds
                                                keywords:(NSArray<NSString *> * _Nonnull)keywords
                                               startDate:(NSDate * _Nullable)startDate
@@ -66,6 +70,8 @@ static NSString *const HELP_TEXT =
      "  status    Get current status of a session (sub agents: termination_reason,\n"
      "            last_tool_status, last_tool_result, delivery_state, ...)\n"
      "  open      Navigate the app UI to a session (positional <session_id>)\n"
+     "  groups    List groups (UI: \"Group\", code: folder) with session counts\n"
+     "  update    Move a session into or out of a group (requires --id and --group)\n"
      "\n"
      "QUERY OPTIONS:\n"
      "  --keywords <words>    Space-separated keywords (AND logic, required for search)\n"
@@ -75,6 +81,8 @@ static NSString *const HELP_TEXT =
      "  --start <YYYY-MM-DD>  Filter results after this date (inclusive)\n"
      "  --end <YYYY-MM-DD>    Filter results before this date (inclusive, end of day)\n"
      "  --limit <n>           Max results (default: 50, max: 100)\n"
+     "  --group <name>        (list only) Filter by group name. Pass \"\" for\n"
+     "                        ungrouped sessions. No match = empty list, not an error.\n"
      "  --full                (messages only) Return full message text up to 50000 chars\n"
      "                        per message instead of the 1000-char default.\n"
      "  --tools               (messages only) Also return each message's tool calls:\n"
@@ -98,6 +106,12 @@ static NSString *const HELP_TEXT =
      "  NOTE: Returns immediately with status \"Retrying\" once dispatched.\n"
      "        Poll with 'status --id <session_id>' to check for completion.\n"
      "\n"
+     "UPDATE OPTIONS:\n"
+     "  --id <session_id>        Session to update (required)\n"
+     "  --group <name>           Move into the group with this exact name, creating\n"
+     "                           it when none exists. Empty string ungroups.\n"
+     "                           This build implements --group only.\n"
+     "\n"
      "STATUS OPTIONS:\n"
      "  --id <session_id>        Session ID to query (required)\n"
      "\n"
@@ -112,6 +126,10 @@ static NSString *const HELP_TEXT =
      "  minis-sessions-cli messages --id <session_id> --full\n"
      "  minis-sessions-cli messages --id <session_id> --tools --full\n"
      "  minis-sessions-cli send \"分析我的睡眠数据\"\n"
+     "  minis-sessions-cli groups\n"
+     "  minis-sessions-cli update --id <session_id> --group \"Fan Club\"\n"
+     "  minis-sessions-cli update --id <session_id> --group \"\"\n"
+     "  minis-sessions-cli list --group \"Fan Club\"\n"
      "  minis-sessions-cli send \"继续\" --session <session_id>\n"
      "  minis-sessions-cli send \"这张图是什么?\" --attach /tmp/photo.png\n"
      "  minis-sessions-cli retry --session <session_id>\n"
@@ -309,11 +327,16 @@ static int cmd_list(int argc, char **argv, int stdout_fd,
     int limit = parse_limit(argc, argv);
 
     // Call bridge directly from guest thread (bridge handles actor isolation internally)
+    // [T-cli-groups] --group filters by group (folder) name. Absent = no
+    // filter; an explicit "" = ungrouped only (spec §3).
+    NSString *groupFilter = noff_find_arg(argc, argv, "--group");
+
     NSDictionary *data = [SessionsOffloadBridge querySessionsWithSessionIds:ids
                                                                   keywords:keywords
                                                                  startDate:startDate
                                                                    endDate:endDate
-                                                                     limit:limit];
+                                                                     limit:limit
+                                                             groupFilter:groupFilter];
 
     NSDictionary *result = noff_json_envelope(TOOL_NAME, @"list", data);
     noff_emit_json(stdout_fd, result, compact, quiet);
@@ -405,6 +428,68 @@ static int cmd_messages(int argc, char **argv, int stdout_fd, int stderr_fd,
     return NOFF_EXIT_SUCCESS;
 }
 
+// ── [T-cli-groups] Groups (folders) ──
+
+static int cmd_groups(int argc, char **argv, int stdout_fd,
+                      BOOL compact, BOOL quiet) {
+    NSDictionary *data = [SessionsOffloadBridge listGroups];
+    NSDictionary *result = noff_json_envelope(TOOL_NAME, @"groups", data);
+    noff_emit_json(stdout_fd, result, compact, quiet);
+    return NOFF_EXIT_SUCCESS;
+}
+
+/// `update` — this build implements the group half of the cross-platform spec
+/// in src/shared/cli/sessions-update.md (§2). `--title`, `--title-auto` and
+/// `--icon` are rejected with `unsupported_option` rather than silently
+/// ignored, so a caller never believes a field changed when it did not.
+static int cmd_update(int argc, char **argv, int stdout_fd, int stderr_fd,
+                      BOOL compact, BOOL quiet) {
+    NSString *sessionId = noff_find_arg(argc, argv, "--id");
+    NSString *group = noff_find_arg(argc, argv, "--group");
+
+    BOOL wantsUnsupported = noff_has_flag(argc, argv, "--title")
+                         || noff_has_flag(argc, argv, "--title-auto")
+                         || noff_has_flag(argc, argv, "--icon");
+
+    if (wantsUnsupported) {
+        NSDictionary *err = noff_json_error(TOOL_NAME, @"update", @"unsupported_option",
+                                            @"This build supports only --group. "
+                                            @"--title, --title-auto and --icon are not implemented yet.");
+        noff_emit_json(stdout_fd, err, compact, quiet);
+        return NOFF_EXIT_INVALID_ARGS;
+    }
+
+    if (!sessionId || sessionId.length == 0) {
+        noff_emit_help(stderr_fd, HELP_TEXT);
+        NSDictionary *err = noff_json_error(TOOL_NAME, @"update", @"invalid_arguments",
+                                            @"--id <session_id> is required for update.");
+        noff_emit_json(stdout_fd, err, compact, quiet);
+        return NOFF_EXIT_INVALID_ARGS;
+    }
+
+    if (!group) {
+        NSDictionary *err = noff_json_error(TOOL_NAME, @"update", @"invalid_arguments",
+                                            @"Nothing to update: pass --group \"<name>\" "
+                                            @"(empty string ungroups).");
+        noff_emit_json(stdout_fd, err, compact, quiet);
+        return NOFF_EXIT_INVALID_ARGS;
+    }
+
+    NSDictionary *data = [SessionsOffloadBridge updateSessionGroup:sessionId groupName:group];
+    NSString *errCode = data[@"error"];
+    if (errCode) {
+        NSDictionary *err = noff_json_error(TOOL_NAME, @"update", errCode,
+                                            data[@"message"] ?: @"update failed");
+        noff_emit_json(stdout_fd, err, compact, quiet);
+        return [errCode isEqualToString:@"session_not_found"]
+            ? NOFF_EXIT_ERROR : NOFF_EXIT_INVALID_ARGS;
+    }
+
+    NSDictionary *result = noff_json_envelope(TOOL_NAME, @"update", data);
+    noff_emit_json(stdout_fd, result, compact, quiet);
+    return NOFF_EXIT_SUCCESS;
+}
+
 // ── Main handler ──
 
 static int sessions_handler(int argc, char **argv,
@@ -437,13 +522,17 @@ static int sessions_handler(int argc, char **argv,
         return cmd_status(argc, argv, stdout_fd, stderr_fd, compact, quiet);
     } else if ([subcmd isEqualToString:@"open"]) {
         return cmd_open(argc, argv, stdout_fd, stderr_fd, compact, quiet);
+    } else if ([subcmd isEqualToString:@"groups"]) {
+        return cmd_groups(argc, argv, stdout_fd, compact, quiet);
+    } else if ([subcmd isEqualToString:@"update"]) {
+        return cmd_update(argc, argv, stdout_fd, stderr_fd, compact, quiet);
     }
 
     noff_emit_help(stderr_fd, HELP_TEXT);
     NSDictionary *err = noff_json_error(TOOL_NAME, subcmd,
                                          NOFF_ERR_INVALID_ARGS,
                                          [NSString stringWithFormat:
-                                          @"Unknown command '%@'. Valid commands: list, search, messages, send, retry, status, open. "
+                                          @"Unknown command '%@'. Valid commands: list, search, messages, send, retry, status, open, groups, update. "
                                            "Use --help for details.", subcmd]);
     noff_emit_json(stdout_fd, err, compact, quiet);
     return NOFF_EXIT_INVALID_ARGS;

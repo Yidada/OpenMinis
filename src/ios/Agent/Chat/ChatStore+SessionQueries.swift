@@ -28,10 +28,16 @@ extension ChatStore {
         let startedAt: Date
         let lastActive: Date
         let messageCount: Int
+        /// [T-cli-groups] Folder (UI: "Group") name; nil when ungrouped or the
+        /// folder row is gone (orphan folder_id renders as ungrouped, matching
+        /// the sidebar's orphan rule).
+        let group: String?
+        /// [T-cli-groups] Session category key (the edit sheet's icon), e.g. "code".
+        let icon: String?
     }
 
     /// Query sessions with optional filtering by IDs and keywords, ordered by updatedAt DESC.
-    func querySessionsMeta(sessionIds: [String]? = nil, keywords: [String]? = nil, limit: Int = 100, startDate: Date? = nil, endDate: Date? = nil) -> [SessionMeta] {
+    func querySessionsMeta(sessionIds: [String]? = nil, keywords: [String]? = nil, groupFilter: String? = nil, limit: Int = 100, startDate: Date? = nil, endDate: Date? = nil) -> [SessionMeta] {
         var conditions: [String] = []
         var bindings: [(Int32, String)] = []
         var doubleBindings: [(Int32, Double)] = []
@@ -43,6 +49,19 @@ extension ChatStore {
             conditions.append("s.id IN (\(placeholders))")
             for id in ids {
                 bindings.append((bindIndex, id))
+                bindIndex += 1
+            }
+        }
+
+        // [T-cli-groups] Filter by folder (UI: "Group") name. nil = no filter,
+        // "" = ungrouped only (including orphans whose folder row is gone),
+        // otherwise every folder with that exact name matches.
+        if let gf = groupFilter {
+            if gf.isEmpty {
+                conditions.append("(s.folder_id IS NULL OR s.folder_id NOT IN (SELECT id FROM folders))")
+            } else {
+                conditions.append("f.name = ?")
+                bindings.append((bindIndex, gf))
                 bindIndex += 1
             }
         }
@@ -78,8 +97,11 @@ extension ChatStore {
                     WHERE m2.session_id = s.id AND m2.role = 'user'
                     ORDER BY m2.sort_order ASC LIMIT 1) AS first_user_msg,
                    s.source, s.created_at, s.updated_at,
-                   (SELECT COUNT(*) FROM messages m3 WHERE m3.session_id = s.id) AS msg_count
+                   (SELECT COUNT(*) FROM messages m3 WHERE m3.session_id = s.id) AS msg_count,
+                   f.name AS group_name,
+                   s.category
             FROM sessions s
+            LEFT JOIN folders f ON f.id = s.folder_id
             \(whereClause)
             ORDER BY s.updated_at DESC
             LIMIT ?
@@ -105,13 +127,16 @@ extension ChatStore {
                 let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 4))
                 let updatedAt = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 5))
                 let msgCount = Int(sqlite3_column_int(stmt, 6))
+                let groupName = sqlite3_column_text(stmt, 7).map { String(cString: $0) }
+                let category = sqlite3_column_text(stmt, 8).map { String(cString: $0) }
 
                 let preview = firstUserPartsJSON.flatMap { extractTextFromPartsJSON($0) }
                 let previewTruncated = preview.map { String($0.prefix(60)) }
 
                 results.append(SessionMeta(
                     id: id, title: title, preview: previewTruncated, source: source,
-                    startedAt: createdAt, lastActive: updatedAt, messageCount: msgCount
+                    startedAt: createdAt, lastActive: updatedAt, messageCount: msgCount,
+                    group: groupName, icon: category
                 ))
             }
         }
