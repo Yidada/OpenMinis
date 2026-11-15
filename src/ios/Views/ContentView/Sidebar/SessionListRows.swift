@@ -96,6 +96,14 @@ struct SessionStackRow: View {
             )
             .equatable()
         }
+        // [T-session-swipe-actions] A never-sent draft row has nothing to pin or
+        // delete yet (its id only exists to hold the composer).
+        .modifier(SessionSwipeActions(
+            sid: session.id,
+            isPinned: session.isPinned,
+            isEnabled: !ContentView.isNewSessionId(session.id),
+            actions: menuActions
+        ))
     }
 }
 
@@ -177,6 +185,67 @@ struct SessionSplitRow: View {
                 }
             }
         )
+        // [T-session-swipe-actions] Same gestures as the iPhone row, keyed on
+        // `menuSid`: a persisted draft acts on its real id, a never-sent draft
+        // has no actions.
+        .modifier(SessionSwipeActions(
+            sid: menuSid ?? session.id,
+            isPinned: session.isPinned,
+            isEnabled: menuSid != nil,
+            actions: menuActions
+        ))
+    }
+}
+
+// MARK: - [T-session-swipe-actions] WeChat-style row gestures
+
+/// Swipe right to pin / unpin, swipe left to delete — the two actions that used
+/// to be reachable only from the long-press menu.
+///
+/// Kept as ONE ViewModifier on purpose. SessionListRows.swift exists because a
+/// deep modifier chain in a `List` row cost minutes of type-metadata
+/// instantiation (see the `[T-ios-stacklist-metadata-explosion]` note in
+/// ContentView+SessionList.swift), so the row's body gains a single wrapper
+/// here rather than two `.swipeActions` calls and their generic nesting.
+///
+/// `allowsFullSwipe` is off on BOTH edges: pinning is a deliberate state change
+/// and deleting is destructive, so neither should fire from momentum alone —
+/// the user has to tap the revealed button, exactly like WeChat. Delete then
+/// still goes through the existing confirmation sheet (file count + size),
+/// because `.delete` is routed through SessionMenuActionChannel like every
+/// other menu action.
+struct SessionSwipeActions: ViewModifier {
+    let sid: String
+    let isPinned: Bool
+    let isEnabled: Bool
+    let actions: SessionMenuActionChannel
+
+    private static let pinTint = Color.orange
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    Button {
+                        actions.send(.togglePin(sid))
+                    } label: {
+                        // LocalizedStringKey so the key is still resolved from
+                        // Localizable.xcstrings (both "Pin"/"Unpin" exist).
+                        Label(LocalizedStringKey(isPinned ? "Unpin" : "Pin"),
+                              systemImage: isPinned ? "pin.slash" : "pin")
+                    }
+                    .tint(Self.pinTint)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        actions.send(.delete(sid))
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+        } else {
+            content
+        }
     }
 }
 
