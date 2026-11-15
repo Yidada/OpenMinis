@@ -476,6 +476,27 @@ final class VoiceInputViewModel: ObservableObject {
     /// Transcript at press time; cancel restores it.
     private var holdTranscriptSnapshot = ""
 
+    // MARK: - [T-composer-hold-to-talk] Composer-mic hold
+    //
+    // The composer's mic lives OUTSIDE this panel, and it switches the composer
+    // into voice mode on the SAME finger-down that must start the recording.
+    // The panel does not exist yet at that moment (it is built on the next
+    // frame), so the press arms this flag and `onAppear` consumes it: capture
+    // starts as soon as the recorder exists, still under the user's finger.
+    private var composerHoldArmed = false
+
+    /// Armed by the composer mic when its hold threshold is crossed.
+    func armComposerHold() {
+        composerHoldArmed = true
+    }
+
+    /// Consumed exactly once, by the panel's `onAppear`.
+    func consumeComposerHold() -> Bool {
+        guard composerHoldArmed else { return false }
+        composerHoldArmed = false
+        return true
+    }
+
     func beginHoldToTalk() {
         guard !permissionDenied, !isHoldingToTalk else { return }
         isHoldingToTalk = true
@@ -489,6 +510,14 @@ final class VoiceInputViewModel: ObservableObject {
     }
 
     func endHoldToTalk(cancelled: Bool) {
+        // Released before the panel was built (a short hold that still crossed
+        // the threshold, or the composer never switched): drop the arming so the
+        // panel cannot start recording with no finger on the screen.
+        if composerHoldArmed {
+            composerHoldArmed = false
+            VoiceLog.log("[VoiceInputDebug] hold-to-talk released before the panel appeared — arming dropped")
+            return
+        }
         guard isHoldingToTalk else { return }
         isHoldingToTalk = false
         if cancelled {

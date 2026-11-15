@@ -282,7 +282,18 @@ extension AIChatView {
                 VoiceModePreference.shared.enteredFromText = true
                 withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = true }
             }
-        }, isVoiceActive: voiceInputActive)
+        }, isVoiceActive: voiceInputActive,
+           onHoldBegan: {
+            // [T-composer-hold-to-talk] Held past the threshold in text mode:
+            // switch into voice mode and start recording in the same motion.
+            vm.voiceUsedInComposition = true
+            VoiceModePreference.shared.enteredFromText = true
+            voiceVM.armComposerHold()
+            inputFocused = false
+            withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = true }
+        }, onHoldEnded: { cancelled in
+            voiceVM.endHoldToTalk(cancelled: cancelled)
+        })
     }
 
     /// Send / Enqueue / Stop circular button.
