@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// Full-bleed wallpaper drawn behind the message list.
 ///
@@ -15,24 +16,23 @@ import SwiftUI
 /// circuit traces up top, a receding floor grid at the bottom, and a flat,
 /// quiet middle where most of the conversation actually sits.
 ///
-/// Two things keep the transcript readable on top of it:
-/// 1. a vertical scrim that fades the image out under the navigation bar and
-///    the composer, and
-/// 2. an opt-out for Reduce Transparency, which falls back to the plain
-///    `ChatColors.background` fill.
+/// A vertical scrim fades the image out under the navigation bar and the
+/// composer so transcript text never sits on a busy pixel. The message list
+/// itself draws nothing behind its cells (both it and its parent are
+/// black-transparent), which is why the fill lives here.
 ///
-/// The view never takes touches: it is decoration, so hit testing and
-/// accessibility are both off.
+/// If the artwork is missing from the bundle this falls back to a painted
+/// gradient rather than the plain fill - a silent blank page is
+/// indistinguishable from "the build did not contain the change".
 struct ChatWallpaperBackground: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         ZStack {
             ChatColors.background
-            if !reduceTransparency {
+            if let artwork = UIImage(named: "ChatWallpaper") {
                 GeometryReader { proxy in
-                    Image("ChatWallpaper")
+                    Image(uiImage: artwork)
                         .resizable()
                         .scaledToFill()
                         .frame(width: proxy.size.width, height: proxy.size.height)
@@ -40,10 +40,25 @@ struct ChatWallpaperBackground: View {
                         .overlay { scrim }
                 }
                 .ignoresSafeArea()
+            } else {
+                fallback
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    /// Deliberately not the artwork: a flat two-stop gradient, so a missing
+    /// asset reads as "intentional but wrong" instead of "nothing happened".
+    private var fallback: some View {
+        LinearGradient(
+            colors: colorScheme == .dark
+                ? [Color(red: 0.02, green: 0.04, blue: 0.09), Color(red: 0.07, green: 0.13, blue: 0.26)]
+                : [Color(red: 0.94, green: 0.96, blue: 1.00), Color(red: 0.80, green: 0.86, blue: 0.96)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
     }
 
     private var scrim: some View {
@@ -61,11 +76,11 @@ struct ChatWallpaperBackground: View {
             ]
         }
         return [
-            .init(color: Color.white.opacity(0.82), location: 0.00),
-            .init(color: Color.white.opacity(0.50), location: 0.16),
-            .init(color: Color.white.opacity(0.36), location: 0.44),
-            .init(color: Color.white.opacity(0.50), location: 0.76),
-            .init(color: Color.white.opacity(0.74), location: 1.00),
+            .init(color: Color.white.opacity(0.72), location: 0.00),
+            .init(color: Color.white.opacity(0.34), location: 0.16),
+            .init(color: Color.white.opacity(0.20), location: 0.44),
+            .init(color: Color.white.opacity(0.36), location: 0.76),
+            .init(color: Color.white.opacity(0.66), location: 1.00),
         ]
     }
 }
