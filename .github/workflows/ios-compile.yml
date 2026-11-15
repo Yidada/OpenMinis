@@ -10,7 +10,7 @@ name: iOS compile check
 on:
   push:
     branches:
-      - ci/compile-check
+      - verify/chat-wallpaper
   workflow_dispatch:
 
 concurrency:
