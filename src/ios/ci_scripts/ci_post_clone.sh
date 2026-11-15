@@ -62,7 +62,10 @@ fi
 step "go toolchain (1.25, not the image default)"
 GO_DIR=/tmp/go1.25
 if [ ! -x "$GO_DIR/bin/go" ]; then
-    GO_FILE=$(curl -fsSL "https://go.dev/dl/?mode=json&include=all" | python3 -c '
+    # The builder's network occasionally drops an HTTP/2 stream mid-request;
+    # a bare curl then exits 16 and kills an otherwise fine release build.
+    CURL="curl -fsSL --retry 6 --retry-all-errors --retry-delay 3 --connect-timeout 20"
+    GO_FILE=$($CURL "https://go.dev/dl/?mode=json&include=all" | python3 -c '
 import json, sys
 for release in json.load(sys.stdin):
     if not release["version"].startswith("go1.25."):
@@ -72,8 +75,12 @@ for release in json.load(sys.stdin):
             print(f["filename"]); sys.exit(0)
 sys.exit(1)
 ')
+    if [ -z "$GO_FILE" ]; then
+        echo "error: could not resolve a Go 1.25 release from go.dev" >&2
+        exit 1
+    fi
     echo "  downloading $GO_FILE"
-    curl -fsSL "https://go.dev/dl/$GO_FILE" -o /tmp/go.tar.gz
+    $CURL "https://go.dev/dl/$GO_FILE" -o /tmp/go.tar.gz
     mkdir -p "$GO_DIR"
     tar -xzf /tmp/go.tar.gz -C "$GO_DIR" --strip-components=1
 fi
