@@ -99,6 +99,25 @@ struct VoiceProviderTemplate: Identifiable {
             tint: .green,
             note: nil
         ),
+        // DeepSeek serves ASR from /v1/tools/asr (multipart, `file` only), not
+        // the OpenAI /v1/audio/transcriptions path — see
+        // VoiceProvider+DeepSeek.swift. The single-.audioInput seed below is
+        // what makes the instance appear under Voice Services.
+        VoiceProviderTemplate(
+            id: "deepseek",
+            name: "DeepSeek",
+            providerType: .openAI,
+            baseURL: "https://api.deepseek.com",
+            appendV1: true,
+            capability: AppLocalized("Speech recognition (ASR)", comment: "Voice provider capability"),
+            baseURLMarkers: ["api.deepseek.com"],
+            mockModels: [
+                LLMModel(id: "deepseek-asr", displayName: "DeepSeek ASR", provider: "deepseek", modalityOverride: .audioInput),
+            ],
+            symbol: "waveform.badge.mic",
+            tint: .blue,
+            note: nil
+        ),
         VoiceProviderTemplate(
             id: "azure-tts",
             name: "Azure TTS",
