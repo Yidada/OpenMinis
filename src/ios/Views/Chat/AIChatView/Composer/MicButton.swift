@@ -45,7 +45,7 @@ struct MicButton: View {
     var onHoldBegan: () -> Void = {}
     /// Finger lifted (or the press was cancelled). `cancelled` is true when the
     /// finger had slid up past the cancel offset.
-    var onHoldEnded: (_ cancelled: Bool) -> Void = {}
+    var onHoldEnded: (_ cancelled: Bool) -> Void = { _ in }
     /// Press feedback for the custom-gesture button.
     @State private var micPressed = false
     // [T-composer-hold-to-talk] Hold bookkeeping. `holdActive` flips true when
