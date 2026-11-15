@@ -363,6 +363,11 @@ struct AIChatView: View {
         nonmutating set { voiceMode.isVoiceActive = newValue }
     }
     @StateObject var voiceVM = VoiceInputViewModel()
+    // [wechat-composer] Hold-to-talk presentation state, shared by the
+    // "按住 说话" bar (gesture owner) and the full-screen overlay.
+    @StateObject var weChatHold = WeChatVoiceHoldState()
+    /// Composer text at the moment the hold began; cancel restores it.
+    @State var weChatHoldBaseText = ""
     /// Global read-replies state — observed so the voice-mode "Read replies" toggle
     /// reflects enabled/muted in lockstep with the global voice-output capsule.
     @ObservedObject var voiceOutput = VoiceOutputState.shared
@@ -552,6 +557,14 @@ struct AIChatView: View {
             // y = 0, under the status bar's clock and battery. They now live in
             // `topBanners`, below the bar, with the scheduled-task banner.
             messagesArea
+                // [wechat-composer] Dim + mic + 取消/转文字, drawn over the
+                // messages and under the input bar (the bar stays visible the
+                // whole time, exactly as WeChat keeps it).
+                .overlay {
+                    if WeChatComposerStyle.enabled {
+                        WeChatVoiceOverlay(hold: weChatHold, voiceVM: voiceVM)
+                    }
+                }
                 .overlay(alignment: .bottom) {
                     // Tool preview + input bar stacked at the bottom.
                     // Both overlay on top of the message list for immersive scrolling.
