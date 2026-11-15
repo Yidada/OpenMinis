@@ -1,0 +1,60 @@
+name: Sync upstream
+
+# Keeps Yidada/OpenMinis in step with OpenMinis/OpenMinis.
+#
+# Runs server-side because the phone is not a reliable place to hold a git
+# remote: every push from here would otherwise depend on that phone being awake
+# with working TLS. This job fetches upstream, fast-forwards or merges, and
+# pushes main. A push to main is what Xcode Cloud listens to, so a synced
+# commit also produces a TestFlight build.
+#
+# On a conflict the job fails loudly (GitHub emails the repo owner) instead of
+# doing something clever; resolve it by hand and merge once.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 10:00 Asia/Shanghai
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge OpenMinis/OpenMinis main
+        run: |
+          set -euo pipefail
+          git config user.name "openminis-sync"
+          git config user.email "openminis-sync@users.noreply.github.com"
+          git remote add upstream https://github.com/OpenMinis/OpenMinis.git
+          git fetch --no-tags upstream main
+
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date with upstream main."
+            exit 0
+          fi
+
+          echo "Incoming commits:"
+          git log --oneline HEAD..upstream/main | head -40
+          git merge --no-edit upstream/main
+          git push origin main
+          echo "Synced to $(git rev-parse --short HEAD)."
+
+      - name: Summarise
+        if: always()
+        run: |
+          echo "### Upstream sync" >> "$GITHUB_STEP_SUMMARY"
+          echo "- fork main: \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- upstream main: \`$(git rev-parse --short upstream/main 2>/dev/null || echo unknown)\`" >> "$GITHUB_STEP_SUMMARY"
