@@ -292,3 +292,30 @@ No existing key changes.
   "work" group when "Work" exists; the spec asks for case-sensitive matching.
   The app's own New Group field would refuse that name and offer the existing
   "Work".
+
+---
+
+## 6. Implementation status (iOS, 2026-11-15)
+
+iOS ships a **subset** of this file, behind the same command names. Do not let the
+gap drift: extend iOS rather than forking the semantics.
+
+| Part | iOS |
+|---|---|
+| `update --id --group` | implemented |
+| `update --title` / `--title-auto` / `--icon` | **not implemented** — rejected with `unsupported_option` (exit 2), never silently ignored |
+| `groups` | implemented (adds `id`, `pinned`, `desc` per group; `session_count` counts every stored member) |
+| `list --group` | implemented; each session carries `group` and `icon` (always present, `""` when unset) |
+| `status` → `group` / `icon` | implemented, inside the existing `data.data` nesting (§3 note) |
+| §5 default session from context | not implemented; `--id` is always required for `update` |
+
+Known deviations, all deliberate:
+
+- A value option followed by another option (`--group --limit 5`) reads the option
+  as the value instead of failing with `invalid_arguments`. `noff_find_arg` predates
+  this feature and other subcommands share the behaviour.
+- `session_count` includes hidden child sessions; the spec counts home-list sessions
+  only.
+- `--group` matching is exact and case-sensitive, as specified, but duplicate-name
+  tie-breaking uses the folder's `createdAt` (oldest) when no candidate has members,
+  matching `findFolderByName`'s documented order.
