@@ -49,6 +49,16 @@ struct InlineVoiceInputView: View {
     @State private var activeGroupName: String? = nil
     @State private var showModelSelector = false
 
+    // [hold-to-talk P0] Gesture bookkeeping for the mic. `holdActive` is the
+    // UI mirror of `viewModel.isHoldingToTalk`; the view drives it because the
+    // 150 ms threshold and the 60 pt slide-up are interaction concerns.
+    @State private var pressStartedAt: Date?
+    @State private var holdWorkItem: DispatchWorkItem?
+    @State private var holdActive = false
+    @State private var cancelArmed = false
+    private static let holdThreshold: TimeInterval = 0.15
+    private static let cancelOffset: CGFloat = 60
+
     // [voice-correction] Manual AI correction. True while a user-requested correction is
     // running — drives the button's spinner and blocks re-taps.
     @State private var isCorrecting = false
@@ -1155,14 +1165,7 @@ struct InlineVoiceInputView: View {
     }
 
     private var micButton: some View {
-        Button {
-            if showCancelIcon {
-                viewModel.cancelTranscription()
-            } else {
-                viewModel.handleMainButtonTap()
-            }
-        } label: {
-            ZStack {
+        ZStack {
                 Circle()
                     .fill(Color.white)
                     .frame(width: micDiameter, height: micDiameter)
@@ -1197,12 +1200,96 @@ struct InlineVoiceInputView: View {
             }
             .frame(width: micDiameter, height: micDiameter)
             .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .disabled(viewModel.permissionDenied)
+        .gesture(micGesture)
+        .overlay(alignment: .top) { holdHint }
+        .allowsHitTesting(!viewModel.permissionDenied)
+        .animation(.easeOut(duration: 0.12), value: holdActive)
+        .animation(.easeOut(duration: 0.12), value: cancelArmed)
         .accessibilityLabel(showCancelIcon
             ? Text("Cancel transcription", comment: "Voice cancel transcription")
             : Text("Toggle recording", comment: "Inline voice mic"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            if showCancelIcon { viewModel.cancelTranscription() } else { viewModel.handleMainButtonTap() }
+        }
+    }
+
+    // MARK: - Hold to talk (P0)
+    //
+    // One DragGesture(minimumDistance: 0) covers both gestures the button now
+    // answers. A press shorter than `holdThreshold` falls through to the
+    // original tap behaviour on release, so nothing about tap-to-dictate
+    // changes; past the threshold the press becomes a recording that ends when
+    // the finger lifts, and sliding up past `cancelOffset` arms the cancel.
+
+    private var micGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard pressStartedAt != nil else {
+                    pressStartedAt = Date()
+                    cancelArmed = false
+                    let work = DispatchWorkItem {
+                        // While the cancel-icon state is showing, a press is a
+                        // cancel tap, never a recording.
+                        guard pressStartedAt != nil, !showCancelIcon else { return }
+                        holdActive = true
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        viewModel.beginHoldToTalk()
+                    }
+                    holdWorkItem = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Self.holdThreshold,
+                                                  execute: work)
+                    return
+                }
+                guard holdActive else { return }
+                let shouldCancel = value.translation.height < -Self.cancelOffset
+                if shouldCancel != cancelArmed {
+                    cancelArmed = shouldCancel
+                    UIImpactFeedbackGenerator(style: shouldCancel ? .medium : .light).impactOccurred()
+                }
+            }
+            .onEnded { value in
+                holdWorkItem?.cancel()
+                holdWorkItem = nil
+                pressStartedAt = nil
+                let wasHolding = holdActive
+                holdActive = false
+                let cancelled = value.translation.height < -Self.cancelOffset
+                if wasHolding {
+                    viewModel.endHoldToTalk(cancelled: cancelled)
+                } else if !cancelled {
+                    // Tap: keep the original semantics.
+                    if showCancelIcon {
+                        viewModel.cancelTranscription()
+                    } else {
+                        viewModel.handleMainButtonTap()
+                    }
+                }
+                cancelArmed = false
+            }
+    }
+
+    /// Small pill above the mic while holding. Red once the cancel is armed.
+    @ViewBuilder
+    private var holdHint: some View {
+        if holdActive {
+            Group {
+                if cancelArmed {
+                    Text("Release to cancel", comment: "Hold to talk: slide-up cancel armed")
+                } else {
+                    Text("Release to finish · slide up to cancel", comment: "Hold to talk hint")
+                }
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(cancelArmed ? Color.red : Color.black.opacity(0.78)))
+            .fixedSize()
+            .offset(y: -30)
+            .allowsHitTesting(false)
+            .transition(.opacity)
+        }
     }
 
     // MARK: - [T-ios-context-usage-hint] Usage line in the status row
