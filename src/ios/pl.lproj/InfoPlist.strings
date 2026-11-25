@@ -1,20 +1,20 @@
 /* Info.plist permission strings — Polski */
 
-"NSLocationWhenInUseUsageDescription" = "localClaw używa Twojej lokalizacji, aby zapisywać w historii sesji miejsce uruchomienia sesji agenta.";
-"NSLocationAlwaysAndWhenInUseUsageDescription" = "localClaw używa lokalizacji w tle, aby zadania agenta mogły działać dalej przy zamkniętej aplikacji. Dane lokalizacji służą wyłącznie do zapisywania historii sesji.";
-"NSCalendarsUsageDescription" = "localClaw uzyskuje dostęp do Kalendarza, aby agent AI mógł sprawdzać Twój harmonogram i dostępność oraz tworzyć wydarzenia w Twoim imieniu.";
-"NSCalendarsFullAccessUsageDescription" = "localClaw uzyskuje dostęp do Kalendarza, aby agent AI mógł sprawdzać Twój harmonogram i dostępność oraz tworzyć wydarzenia w Twoim imieniu.";
-"NSRemindersUsageDescription" = "localClaw uzyskuje dostęp do Przypomnień, aby agent AI mógł wyszukiwać i tworzyć przypomnienia w Twoim imieniu.";
-"NSRemindersFullAccessUsageDescription" = "localClaw uzyskuje dostęp do Przypomnień, aby agent AI mógł wyszukiwać i tworzyć przypomnienia w Twoim imieniu.";
-"NSCameraUsageDescription" = "localClaw potrzebuje dostępu do aparatu, aby robić zdjęcia na potrzeby rozmów z AI.";
-"NSPhotoLibraryUsageDescription" = "localClaw potrzebuje dostępu do biblioteki zdjęć, aby dołączać obrazy do rozmów z AI.";
-"NSPhotoLibraryAddUsageDescription" = "localClaw potrzebuje zezwolenia na zapisywanie filmów i obrazów w Twojej bibliotece zdjęć.";
-"NSHealthShareUsageDescription" = "localClaw uzyskuje dostęp do HealthKit, aby agent AI mógł odczytywać dane zdrowotne, takie jak kroki, tętno, sen i treningi, w Twoim imieniu.";
-"NSHealthUpdateUsageDescription" = "localClaw zapisuje dane w HealthKit, aby agent AI mógł rejestrować dane zdrowotne, takie jak kroki, waga i wypite płyny, w Twoim imieniu.";
-"NSContactsUsageDescription" = "localClaw uzyskuje dostęp do Kontaktów, aby agent AI mógł wyszukiwać, wyświetlać i porządkować Twoje kontakty w Twoim imieniu.";
-"NSAppleMusicUsageDescription" = "localClaw uzyskuje dostęp do biblioteki multimediów, aby agent AI mógł przeszukiwać Twoją bibliotekę muzyki i sterować odtwarzaniem.";
-"NSMicrophoneUsageDescription" = "localClaw potrzebuje dostępu do mikrofonu na potrzeby wprowadzania głosowego w czacie.";
-"NSSpeechRecognitionUsageDescription" = "localClaw używa rozpoznawania mowy, aby zamieniać Twój głos na wiadomości tekstowe.";
-"NSHomeKitUsageDescription" = "localClaw uzyskuje dostęp do HomeKit, aby agent AI mógł sprawdzać i sterować urządzeniami inteligentnego domu w Twoim imieniu.";
-"NSAlarmKitUsageDescription" = "localClaw używa AlarmKit, aby agent AI mógł ustawiać alarmy i minutniki w Twoim imieniu.";
+"NSLocationWhenInUseUsageDescription" = "Lychee używa Twojej lokalizacji, aby zapisywać w historii sesji miejsce uruchomienia sesji agenta.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Lychee używa lokalizacji w tle, aby zadania agenta mogły działać dalej przy zamkniętej aplikacji. Dane lokalizacji służą wyłącznie do zapisywania historii sesji.";
+"NSCalendarsUsageDescription" = "Lychee uzyskuje dostęp do Kalendarza, aby agent AI mógł sprawdzać Twój harmonogram i dostępność oraz tworzyć wydarzenia w Twoim imieniu.";
+"NSCalendarsFullAccessUsageDescription" = "Lychee uzyskuje dostęp do Kalendarza, aby agent AI mógł sprawdzać Twój harmonogram i dostępność oraz tworzyć wydarzenia w Twoim imieniu.";
+"NSRemindersUsageDescription" = "Lychee uzyskuje dostęp do Przypomnień, aby agent AI mógł wyszukiwać i tworzyć przypomnienia w Twoim imieniu.";
+"NSRemindersFullAccessUsageDescription" = "Lychee uzyskuje dostęp do Przypomnień, aby agent AI mógł wyszukiwać i tworzyć przypomnienia w Twoim imieniu.";
+"NSCameraUsageDescription" = "Lychee potrzebuje dostępu do aparatu, aby robić zdjęcia na potrzeby rozmów z AI.";
+"NSPhotoLibraryUsageDescription" = "Lychee potrzebuje dostępu do biblioteki zdjęć, aby dołączać obrazy do rozmów z AI.";
+"NSPhotoLibraryAddUsageDescription" = "Lychee potrzebuje zezwolenia na zapisywanie filmów i obrazów w Twojej bibliotece zdjęć.";
+"NSHealthShareUsageDescription" = "Lychee uzyskuje dostęp do HealthKit, aby agent AI mógł odczytywać dane zdrowotne, takie jak kroki, tętno, sen i treningi, w Twoim imieniu.";
+"NSHealthUpdateUsageDescription" = "Lychee zapisuje dane w HealthKit, aby agent AI mógł rejestrować dane zdrowotne, takie jak kroki, waga i wypite płyny, w Twoim imieniu.";
+"NSContactsUsageDescription" = "Lychee uzyskuje dostęp do Kontaktów, aby agent AI mógł wyszukiwać, wyświetlać i porządkować Twoje kontakty w Twoim imieniu.";
+"NSAppleMusicUsageDescription" = "Lychee uzyskuje dostęp do biblioteki multimediów, aby agent AI mógł przeszukiwać Twoją bibliotekę muzyki i sterować odtwarzaniem.";
+"NSMicrophoneUsageDescription" = "Lychee potrzebuje dostępu do mikrofonu na potrzeby wprowadzania głosowego w czacie.";
+"NSSpeechRecognitionUsageDescription" = "Lychee używa rozpoznawania mowy, aby zamieniać Twój głos na wiadomości tekstowe.";
+"NSHomeKitUsageDescription" = "Lychee uzyskuje dostęp do HomeKit, aby agent AI mógł sprawdzać i sterować urządzeniami inteligentnego domu w Twoim imieniu.";
+"NSAlarmKitUsageDescription" = "Lychee używa AlarmKit, aby agent AI mógł ustawiać alarmy i minutniki w Twoim imieniu.";
 "NSLocalNetworkUsageDescription" = "Maszyna wirtualna potrzebuje dostępu do sieci na potrzeby połączeń SLIRP.";

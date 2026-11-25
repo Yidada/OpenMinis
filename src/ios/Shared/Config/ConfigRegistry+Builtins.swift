@@ -1246,9 +1246,8 @@ extension ConfigRegistry {
             displayName: "App icon",
             description: "Home screen icon variant.",
             userDefaultsKey: "appIconMode",
-            cases: ["auto", "light", "dark", "legacy_light", "legacy_dark"],
-            valueLabels: ["auto": "Automatic", "light": "Light", "dark": "Dark",
-                          "legacy_light": "Classic light", "legacy_dark": "Classic dark"],
+            cases: ["auto", "light", "dark"],
+            valueLabels: ["auto": "Automatic", "light": "Light", "dark": "Dark"],
             defaultIndex: 0
         ))
         r.register(AppStorageStringField(

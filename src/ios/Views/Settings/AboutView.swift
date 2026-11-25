@@ -83,7 +83,7 @@ struct AboutView: View {
                                     .stroke(Color(UIColor.separator), lineWidth: 0.5)
                             )
                     }
-                    Text(verbatim: "localClaw")
+                    Text(verbatim: "Lychee")
                         .font(.title2.bold())
                     Text("Version \(appVersion)")
                         .font(.subheadline)

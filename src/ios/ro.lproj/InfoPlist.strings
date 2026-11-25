@@ -1,20 +1,20 @@
 /* Info.plist permission strings — Română */
 
-"NSLocationWhenInUseUsageDescription" = "localClaw folosește locația ta pentru a înregistra în istoricul sesiunilor unde a fost pornită fiecare sesiune de agent.";
-"NSLocationAlwaysAndWhenInUseUsageDescription" = "localClaw folosește locația în fundal pentru ca sarcinile agentului să continue când aplicația este închisă. Datele de locație sunt folosite doar pentru a înregistra istoricul sesiunilor.";
-"NSCalendarsUsageDescription" = "localClaw accesează Calendarul pentru ca agentul AI să îți poată vedea programul, verifica disponibilitatea și crea evenimente în numele tău.";
-"NSCalendarsFullAccessUsageDescription" = "localClaw accesează Calendarul pentru ca agentul AI să îți poată vedea programul, verifica disponibilitatea și crea evenimente în numele tău.";
-"NSRemindersUsageDescription" = "localClaw accesează Mementourile pentru ca agentul AI să poată căuta și crea mementouri în numele tău.";
-"NSRemindersFullAccessUsageDescription" = "localClaw accesează Mementourile pentru ca agentul AI să poată căuta și crea mementouri în numele tău.";
-"NSCameraUsageDescription" = "localClaw are nevoie de acces la cameră pentru a face fotografii folosite în conversațiile cu AI.";
-"NSPhotoLibraryUsageDescription" = "localClaw are nevoie de acces la biblioteca foto pentru a atașa imagini la conversațiile cu AI.";
-"NSPhotoLibraryAddUsageDescription" = "localClaw are nevoie de permisiune pentru a salva clipuri și imagini în biblioteca ta foto.";
-"NSHealthShareUsageDescription" = "localClaw accesează HealthKit pentru ca agentul AI să poată citi date de sănătate precum pași, puls, somn și antrenamente în numele tău.";
-"NSHealthUpdateUsageDescription" = "localClaw scrie în HealthKit pentru ca agentul AI să poată înregistra date de sănătate precum pași, greutate și consum de apă în numele tău.";
-"NSContactsUsageDescription" = "localClaw accesează Contactele pentru ca agentul AI să poată căuta, afișa și gestiona contactele tale în numele tău.";
-"NSAppleMusicUsageDescription" = "localClaw accesează biblioteca media pentru ca agentul AI să poată căuta în biblioteca ta muzicală și controla redarea.";
-"NSMicrophoneUsageDescription" = "localClaw are nevoie de acces la microfon pentru introducerea vocală în chat.";
-"NSSpeechRecognitionUsageDescription" = "localClaw folosește recunoașterea vocală pentru a transforma vocea ta în mesaje text.";
-"NSHomeKitUsageDescription" = "localClaw accesează HomeKit pentru ca agentul AI să poată verifica și controla dispozitivele smart home în numele tău.";
-"NSAlarmKitUsageDescription" = "localClaw folosește AlarmKit pentru ca agentul AI să poată seta alarme și cronometre în numele tău.";
+"NSLocationWhenInUseUsageDescription" = "Lychee folosește locația ta pentru a înregistra în istoricul sesiunilor unde a fost pornită fiecare sesiune de agent.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Lychee folosește locația în fundal pentru ca sarcinile agentului să continue când aplicația este închisă. Datele de locație sunt folosite doar pentru a înregistra istoricul sesiunilor.";
+"NSCalendarsUsageDescription" = "Lychee accesează Calendarul pentru ca agentul AI să îți poată vedea programul, verifica disponibilitatea și crea evenimente în numele tău.";
+"NSCalendarsFullAccessUsageDescription" = "Lychee accesează Calendarul pentru ca agentul AI să îți poată vedea programul, verifica disponibilitatea și crea evenimente în numele tău.";
+"NSRemindersUsageDescription" = "Lychee accesează Mementourile pentru ca agentul AI să poată căuta și crea mementouri în numele tău.";
+"NSRemindersFullAccessUsageDescription" = "Lychee accesează Mementourile pentru ca agentul AI să poată căuta și crea mementouri în numele tău.";
+"NSCameraUsageDescription" = "Lychee are nevoie de acces la cameră pentru a face fotografii folosite în conversațiile cu AI.";
+"NSPhotoLibraryUsageDescription" = "Lychee are nevoie de acces la biblioteca foto pentru a atașa imagini la conversațiile cu AI.";
+"NSPhotoLibraryAddUsageDescription" = "Lychee are nevoie de permisiune pentru a salva clipuri și imagini în biblioteca ta foto.";
+"NSHealthShareUsageDescription" = "Lychee accesează HealthKit pentru ca agentul AI să poată citi date de sănătate precum pași, puls, somn și antrenamente în numele tău.";
+"NSHealthUpdateUsageDescription" = "Lychee scrie în HealthKit pentru ca agentul AI să poată înregistra date de sănătate precum pași, greutate și consum de apă în numele tău.";
+"NSContactsUsageDescription" = "Lychee accesează Contactele pentru ca agentul AI să poată căuta, afișa și gestiona contactele tale în numele tău.";
+"NSAppleMusicUsageDescription" = "Lychee accesează biblioteca media pentru ca agentul AI să poată căuta în biblioteca ta muzicală și controla redarea.";
+"NSMicrophoneUsageDescription" = "Lychee are nevoie de acces la microfon pentru introducerea vocală în chat.";
+"NSSpeechRecognitionUsageDescription" = "Lychee folosește recunoașterea vocală pentru a transforma vocea ta în mesaje text.";
+"NSHomeKitUsageDescription" = "Lychee accesează HomeKit pentru ca agentul AI să poată verifica și controla dispozitivele smart home în numele tău.";
+"NSAlarmKitUsageDescription" = "Lychee folosește AlarmKit pentru ca agentul AI să poată seta alarme și cronometre în numele tău.";
 "NSLocalNetworkUsageDescription" = "Mașina virtuală are nevoie de acces la rețea pentru conexiunile SLIRP.";
